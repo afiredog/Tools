@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>工时计算</title>
+</head>
+<body>
+<div>
+    <input type="file" accept="image/*" onchange="inputChange(event)">
+    <div class="wrap"></div>
+</div>
+</body>
+<!-- v4 -->
+<script src='https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js'></script>
+<script>
+
+    const HOUR = 60 * 60 * 1000
+
+    function inputChange(evt) {
+        const file = evt.target.files[0];
+        if (!file) return;
+        console.log(file);
+        recognize(file)
+    }
+
+    function recognize(img) {
+        let loading = true
+        let hourNumArr = []
+        let hourNum = 0
+        let averHourNum = 0
+        setHtml(hourNumArr, hourNum, averHourNum, loading)
+        Tesseract.recognize(img, 'eng', {
+            workerPath: 'https://unpkg.com/tesseract.js@v4.0.3/dist/worker.min.js',
+            langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
+            corePath: 'https://unpkg.com/tesseract.js-core@v4.0.3/tesseract-core.wasm.js',
+            logger: m => {
+                console.log(m.progress.toFixed(2));
+                document.querySelector('.wrap').innerHTML = `<p>${m.progress.toFixed(2) * 100}%</p>`;
+            }
+        }).then(res => {
+            const {data: {text}} = res
+            let time = 0
+            // 判断text是否包含':'和'\n'
+            if (text && text.includes(':') && text.includes('\n')) {
+                const arr = text.split('\n');
+                arr.forEach(item => {
+                    if (item) {
+                        const itemArr = item.split(' ');
+                        const calcValue = calcHour(itemArr)
+                        time += calcValue
+                        hourNumArr.push(calcValue / HOUR)
+                    }
+                })
+                console.log(time);
+                if (time) {
+                    let loading = false
+                    hourNum = time / HOUR
+                    averHourNum = hourNum / (arr.length - 1)
+                    setHtml(hourNumArr, hourNum, averHourNum, loading)
+                }
+            }else {
+                alert('请提高图片清晰度')
+            }
+        })
+    }
+
+    function calcHour(arr) {
+        const date1 = new Date(`2000/1/1 ${arr[0]}:00`);
+        const date2 = new Date(`2000/1/1 ${arr[1]}:00`);
+        console.log(date2 - date1);
+        return date2 - date1
+    }
+
+    function setHtml(value, value1, value2, loading) {
+        if (loading) {
+            document.querySelector('.wrap').innerHTML = `<p>计算中...</p>`;
+            return
+        }
+        let innerHTML = ''
+        if (value.length > 0) {
+            value.forEach((item, index) => {
+                innerHTML += `<p>${index + 1}：${item.toFixed(2)} 小时</p>`
+            })
+        }
+        document.querySelector('.wrap').innerHTML = `${innerHTML}<p>总计：${value1.toFixed(2)} 小时</p><p>平均：${value2.toFixed(2)} 小时</p>`;
+    }
+
+</script>
+</html>
